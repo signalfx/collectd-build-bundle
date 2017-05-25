@@ -26,7 +26,7 @@ if [[ -z $HOSTNAME ]]
 then
   HOSTNAME_CONFIG="FQDNLookup   true"
 else
-  HOSTNAME_CONFIG="Hostname   $HOSTNAME"
+  HOSTNAME_CONFIG="Hostname   \"$HOSTNAME\""
 fi
 
 run_curl() {
