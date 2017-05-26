@@ -81,6 +81,14 @@ called `API_TOKEN`.
 $ API_TOKEN=abcdefg collectd/run.sh
 ```
 
+The following envvars can be passed to the run script:
+
+ - `API_TOKEN` (required) - The SignalFx API Token for the org you want to send metrics to
+ - `HOSTNAME` (optional) - Value to override the hostname of the machine.  This
+     will be automatically filled in if not provided.
+ - `NO_SYSTEM_METRICS` (optional) - If this envvar is set to anything, system
+     metrics will be disabled in the built-in config files.
+
 This will run Collectd with the collectdmon tool that handles automatically
 restarting collectd should it crash.
 
