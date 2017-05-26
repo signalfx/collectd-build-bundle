@@ -43,9 +43,7 @@ echo "Processed $(wc -w <<< $libs) libraries"
 echo "Checking for missing lib dependencies..."
 
 # LD_LIBRARY_PATH gets priority over default system paths
-export LD_LIBRARY_PATH=$INSTALL_DIR/lib:$INSTALL_DIR/lib/x86_64-linux-gnu
-new_deps=$(find_deps)
-export LD_LIBRARY_PATH=
+new_deps=$(LD_LIBRARY_PATH=$INSTALL_DIR/lib:$INSTALL_DIR/lib/x86_64-linux-gnu find_deps)
 
 # Look for any libs still pointing out of our install path
 missing_deps=$(grep -v "/opt/collectd" <<< $new_deps || true)

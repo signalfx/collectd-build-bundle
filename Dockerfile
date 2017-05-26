@@ -119,16 +119,16 @@ RUN make &&\
     mkdir -p /opt/collectd/etc/filtering_config &&\
     mkdir -p /opt/collectd/etc/managed_config
 
-COPY collect-libs.sh /opt/
-RUN bash /opt/collect-libs.sh $INSTALL_DIR &&\
-    cp -r /usr/lib/python2.7 /opt/collectd/lib/python2.7
-
-# jq and curl are used to get the AWS unique id out from the AWS metadata endpoint
-# The curl binary needs a different libcurl so so copy it in too
+# jq and netcat are used to get the AWS unique id out from the AWS metadata
+# endpoint.
+# Gomplate is a much better alternative to the sed hacking the current
+# installer does
 RUN wget -O /opt/collectd/bin/jq https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64 &&\
     chmod +x /opt/collectd/bin/jq &&\
-    cp /usr/bin/curl /opt/collectd/bin &&\
-    cp /usr/lib/x86_64-linux-gnu/libcurl.so.4 /opt/collectd/lib/x86_64-linux-gnu/
+    cp /bin/nc /opt/collectd/bin &&\
+    cp /bin/sed /opt/collectd/bin &&\
+    wget -O /opt/collectd/bin/gomplate https://github.com/hairyhenderson/gomplate/releases/download/v1.7.0/gomplate_linux-amd64 &&\
+    chmod +x /opt/collectd/bin/gomplate
 
 # Get the patchelf tool in the bundle to change interpreters at runtime
 RUN wget -O /tmp/patchelf.tar.gz https://nixos.org/releases/patchelf/patchelf-0.9/patchelf-0.9.tar.gz &&\
@@ -140,19 +140,21 @@ RUN wget -O /tmp/patchelf.tar.gz https://nixos.org/releases/patchelf/patchelf-0.
     mkdir -p /opt/collectd/lib64 &&\
     cp /lib64/ld-linux-x86-64.so.2 /opt/collectd/lib64/
 
+COPY collect-libs.sh /opt/
+RUN bash /opt/collect-libs.sh $INSTALL_DIR &&\
+    cp -r /usr/lib/python2.7 /opt/collectd/lib/python2.7
+
 # Install SignalFx plugin
 RUN mkdir -p /opt/collectd/plugins &&\
     git clone https://github.com/signalfx/signalfx-collectd-plugin.git /opt/collectd/plugins/signalfx &&\
     pip install --install-option="--prefix=$INSTALL_DIR" -r /opt/collectd/plugins/signalfx/requirements.txt
 
-RUN git clone https://github.com/signalfx/signalfx-collectd-installer.git /src/installer &&\
-    cd /src/installer &&\
-    bash /src/installer/build.sh &&\
-    mkdir -p /opt/collectd/templates &&\
-    cp 10-aggregation-cpu.conf /opt/collectd/etc/managed_config &&\
-    cp 10-signalfx.conf 10-write_http-plugin.conf *.tmpl /opt/collectd/templates/
-
-RUN cp /etc/ssl/certs/ca-certificates.crt /opt/collectd/ca-certificates.crt
+COPY templates /opt/collectd/templates
+# Copy in templates, CA certs, and filtering config
+# Copy in all CA certs instead of only our GoDaddy one in case we switch CAs
+RUN cp /etc/ssl/certs/ca-certificates.crt /opt/collectd/ca-certificates.crt &&\
+    wget -O /opt/collectd/etc/filtering_config/filtering.conf \
+      https://raw.githubusercontent.com/signalfx/integrations/master/collectd-match_regex/filtering.conf
 
 COPY run.sh /opt/collectd/run.sh
 

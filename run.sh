@@ -4,6 +4,31 @@ set -ex
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+append_dim_qs() {
+  local extra_dims=$1
+  local dim_name=$2
+  local dim_value=$3
+
+  dim_qp="sfxdim_$dim_name=$dim_value"
+
+  if [ -z $extra_dims ]
+  then
+    echo "?${dim_qp}"
+  else
+    # Escape & so sed doesn't see it
+    echo "${extra_dims}&${dim_qp}"
+  fi
+}
+
+dims_to_add=$(printenv | grep '^SFX_DIM' || true)
+for dim in $dims_to_add
+do
+  name=$(cut -d'=' -f 1 <<< $dim | sed -e 's/SFX_DIM_//')
+  value=$(cut -d'=' -f 2 <<< $dim)
+  EXTRA_DIMS=$(append_dim_qs "$EXTRA_DIMS" $name $value)
+  echo "Adding extra dimension $name=$value"
+done
+
 # Wait and export these until the very end
 LD_LIBRARY_PATH=$SCRIPT_DIR/lib:$SCRIPT_DIR/lib/x86_64-linux-gnu
 PYTHONHOME=$SCRIPT_DIR/lib/python2.7
@@ -12,7 +37,7 @@ PYTHONPATH=$SCRIPT_DIR/lib/python2.7:$SCRIPT_DIR/lib/python2.7/plat-x86_64-linux
 export PATH=$SCRIPT_DIR/bin:$PATH
 
 echo 'Patching binaries to use custom loader'
-for bin in $SCRIPT_DIR/sbin/collectd{,mon} $SCRIPT_DIR/bin/curl
+for bin in $SCRIPT_DIR/sbin/collectd{,mon} $SCRIPT_DIR/bin/{nc,sed}
 do
   patchelf --set-interpreter $SCRIPT_DIR/lib64/ld-linux-x86-64.so.2 $bin
 done
@@ -20,53 +45,33 @@ done
 SFX_INGEST_URL=${SFX_INGEST_URL:-https://ingest.signalfx.com}
 [[ -z $API_TOKEN ]] && echo 'API_TOKEN envvar must be given!' >&2 && exit 1
 
-WRITE_QUEUE_CONFIG="WriteQueueLimitHigh 500000\\nWriteQueueLimitLow  400000\\nCollectInternalStats true"
-
-if [[ -z $HOSTNAME ]]
-then
-  HOSTNAME_CONFIG="FQDNLookup   true"
-else
-  HOSTNAME_CONFIG="Hostname   \"$HOSTNAME\""
-fi
-
-run_curl() {
-  # We can't export LD_LIBRARY_PATH to everything yet or else it breaks basic
-  # shell commands, so do a one-off for curl to use our bundled version
-  LD_LIBRARY_PATH=$LD_LIBRARY_PATH curl $@
+get_aws_ident() {
+  # Use netcat with sed magic instead of curl since libcurl has issues
+  # netcat, jq, and sed are bundled
+  (export LD_LIBRARY_PATH=$LD_LIBRARY_PATH; \
+    echo -e "GET /latest/dynamic/instance-identity/document HTTP/1.1\r\n\r\n" | \
+    nc -q1 -w1 169.254.169.254 80 | \
+    sed '1,/^\r$/d' | \
+    jq -r '.instanceId + "_" + .accountId + "_" + .region' || true)
 }
+AWS_UNIQUE_ID=$(get_aws_ident)
 
-AWS_UNIQUE_ID=$($(run_curl -s --connect-timeout 1 http://169.254.169.254/latest/dynamic/instance-identity/document) | jq -r '.instanceId + "_" + .accountId + "_" + .region' || true)
-
-[ -n "$AWS_UNIQUE_ID" ] && EXTRA_DIMS="sfxdim_AWSUniqueId=$AWS_UNIQUE_ID"
+[ -n "$AWS_UNIQUE_ID" ] && EXTRA_DIMS=$(append_dim_qs "$EXTRA_DIMS" AWSUniqueId $AWS_UNIQUE_ID)
 
 COLLECTD_CONF=${SCRIPT_DIR}/etc/collectd.conf
 
 mkdir -p $SCRIPT_DIR/log
 
-# We are appending into specific lines in the files so ideally we would lock
-# down the versions of the template config files or else pull them into this
-# repo for better control
-sed -e "s#%%%TYPESDB%%%#${SCRIPT_DIR}/share/collectd/types.db#" \
-    -e "34aPluginDir \"$SCRIPT_DIR/lib/collectd\"" \
-    -e "34aBaseDir \"$SCRIPT_DIR\"" \
-    -e "s#%%%SOURCENAMEINFO%%%#${HOSTNAME_CONFIG}#" \
-    -e "s#%%%WRITEQUEUECONFIG%%%#${WRITE_QUEUE_CONFIG}#" \
-    -e "s#%%%COLLECTDMANAGEDCONFIG%%%#${SCRIPT_DIR}/etc/managed_config#" \
-    -e "s#%%%COLLECTDFILTERINGCONFIG%%%#${SCRIPT_DIR}/etc/filtering_config#" \
-    -e "s#%%%LOGTO%%%#\"${SCRIPT_DIR}/log/collectd.log\"#" \
-    "${SCRIPT_DIR}/templates/collectd.conf.tmpl" | tee $COLLECTD_CONF
-
-sed -e "s#%%%API_TOKEN%%%#${API_TOKEN}#g" \
-    -e "s#%%%INGEST_HOST%%%#${SFX_INGEST_URL}#g" \
-    -e "s#%%%EXTRA_DIMS%%%#${EXTRA_DIMS}#g" \
-    -e "9aCACert \"${SCRIPT_DIR}/ca-certificates.crt\"" \
-    "${SCRIPT_DIR}/templates/10-write_http-plugin.conf" | tee "$SCRIPT_DIR/etc/managed_config/10-write_http-plugin.conf"
-
-sed -e "s#%%%API_TOKEN%%%#${API_TOKEN}#g" \
-    -e "s#URL.*#URL \"${SFX_INGEST_URL}/v1/collectd${EXTRA_DIMS}\"#g" \
-    -e "s#/opt/signalfx-collectd-plugin#$SCRIPT_DIR/plugins/signalfx#g" \
-    -e "s#plugins/signalfx\"#plugins/signalfx/src\"#g" \
-    "${SCRIPT_DIR}/templates/10-signalfx.conf" | tee "$SCRIPT_DIR/etc/managed_config/10-signalfx.conf"
+TYPES_DB=${SCRIPT_DIR}/share/collectd/types.db \
+PLUGIN_DIR=$SCRIPT_DIR/lib/collectd \
+BASE_DIR=$SCRIPT_DIR \
+HOSTNAME=$HOSTNAME \
+API_TOKEN=$API_TOKEN \
+INGEST_HOST=$SFX_INGEST_URL \
+BASE_DIR=$SCRIPT_DIR \
+EXTRA_DIMS=$EXTRA_DIMS \
+NO_SYSTEM_METRICS=$NO_SYSTEM_METRICS \
+gomplate --input-dir="${SCRIPT_DIR}/templates/" --output-dir="$SCRIPT_DIR/etc"
 
 export LD_LIBRARY_PATH PYTHONPATH PYTHONHOME
 
