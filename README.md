@@ -108,9 +108,9 @@ This has been tested on Ubuntu 14.04 and Centos 7 but needs a lot more testing
 as well as an automated test suite.
 
 ## Versioning
-This bundle is versioned based on the underlying collectd version with a `+<num>`
+This bundle is versioned based on the underlying collectd version with a `-<num>`
 label that increments for each release of this bundle between collectd
-versions.  For example, a version of `5.7.0+4` indicates the fourth release of
+versions.  For example, a version of `5.7.0-4` indicates the fourth release of
 this bundle based on collectd 5.7.0.
 
 ## TODO

@@ -161,7 +161,7 @@ COPY VERSION /opt/collectd/VERSION
 
 # Ensure versions are consistent and bundle everything up
 RUN bash -c 'ver=$(cat /opt/collectd/VERSION); \
-            [[ ${ver%+*} == $COLLECTD_VERSION ]] || \
+            [[ ${ver%-*} == $COLLECTD_VERSION ]] || \
             (echo "VERSION MISMATCH ($ver / $COLLECTD_VERSION)" >&2 && exit 1)' &&\
     chmod +x /opt/collectd/run.sh &&\
     tar -C /opt -zcf /opt/collectd.tar.gz collectd &&\
