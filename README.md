@@ -91,6 +91,8 @@ The following envvars can be passed to the run script:
  - `SFX_DIM_<dim_name>` (optional) - Extra dimensions can be specified by this
      envvar.  For example, to send an extra dimension called *app_instance_id*
      with a value of '5', use an envvar of `SFX_DIM_app_instance_id=5`.
+ - `LOG_FILE` (optional) - The file path to write collectd logs to.  Defaults
+     to the `<bundle install dir>/log/collectd.log`
 
 This will run Collectd with the collectdmon tool that handles automatically
 restarting collectd should it crash.

@@ -128,7 +128,8 @@ RUN wget -O /opt/collectd/bin/jq https://github.com/stedolan/jq/releases/downloa
     cp /bin/nc /opt/collectd/bin &&\
     cp /bin/sed /opt/collectd/bin &&\
     wget -O /opt/collectd/bin/gomplate https://github.com/hairyhenderson/gomplate/releases/download/v1.7.0/gomplate_linux-amd64 &&\
-    chmod +x /opt/collectd/bin/gomplate
+    chmod +x /opt/collectd/bin/gomplate &&\
+    pip install yq
 
 # Get the patchelf tool in the bundle to change interpreters at runtime
 RUN wget -O /tmp/patchelf.tar.gz https://nixos.org/releases/patchelf/patchelf-0.9/patchelf-0.9.tar.gz &&\
@@ -148,6 +149,10 @@ RUN bash /opt/collect-libs.sh $INSTALL_DIR &&\
 RUN mkdir -p /opt/collectd/plugins &&\
     git clone https://github.com/signalfx/signalfx-collectd-plugin.git /opt/collectd/plugins/signalfx &&\
     pip install --install-option="--prefix=$INSTALL_DIR" -r /opt/collectd/plugins/signalfx/requirements.txt
+
+COPY install-plugins.sh plugins.yaml /tmp/plugins/
+# Install other python plugins
+RUN bash -e /tmp/plugins/install-plugins.sh
 
 COPY templates /opt/collectd/templates
 # Copy in templates, CA certs, and filtering config
