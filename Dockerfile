@@ -157,7 +157,12 @@ RUN cp /etc/ssl/certs/ca-certificates.crt /opt/collectd/ca-certificates.crt &&\
       https://raw.githubusercontent.com/signalfx/integrations/master/collectd-match_regex/filtering.conf
 
 COPY run.sh /opt/collectd/run.sh
+COPY VERSION /opt/collectd/VERSION
 
-RUN chmod +x /opt/collectd/run.sh &&\
+# Ensure versions are consistent and bundle everything up
+RUN bash -c 'ver=$(cat /opt/collectd/VERSION); \
+            [[ ${ver%+*} == $COLLECTD_VERSION ]] || \
+            (echo "VERSION MISMATCH ($ver / $COLLECTD_VERSION)" >&2 && exit 1)' &&\
+    chmod +x /opt/collectd/run.sh &&\
     tar -C /opt -zcf /opt/collectd.tar.gz collectd &&\
     echo "Bundle is $(du -h /opt/collectd.tar.gz | awk '{ print $1 }') compressed/$(du -sh /opt/collectd | awk '{ print $1 }') uncompressed"

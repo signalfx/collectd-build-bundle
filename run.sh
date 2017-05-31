@@ -4,6 +4,8 @@ set -ex
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+PID_FILE=${PID_FILE:-$SCRIPT_DIR/pid}
+
 append_dim_qs() {
   local extra_dims=$1
   local dim_name=$2
@@ -73,6 +75,8 @@ EXTRA_DIMS=$EXTRA_DIMS \
 NO_SYSTEM_METRICS=$NO_SYSTEM_METRICS \
 gomplate --input-dir="${SCRIPT_DIR}/templates/" --output-dir="$SCRIPT_DIR/etc"
 
+echo "About to start collectd bundle version $(cat $SCRIPT_DIR/VERSION)"
+
 export LD_LIBRARY_PATH PYTHONPATH PYTHONHOME
 
-exec $SCRIPT_DIR/sbin/collectdmon -c $SCRIPT_DIR/sbin/collectd -P $SCRIPT_DIR/pid -- -C $SCRIPT_DIR/etc/collectd.conf
+exec $SCRIPT_DIR/sbin/collectdmon -c $SCRIPT_DIR/sbin/collectd -P $PID_FILE -- -C $SCRIPT_DIR/etc/collectd.conf

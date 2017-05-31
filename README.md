@@ -53,10 +53,10 @@ to be relatively safe.
 
 This attempts to reuse the [collectd Install
 script](https://github.com/signalfx/signalfx-collectd-installer) to some
-extent, as well as the config templates that it pulls from the [integrations
-repo](https://github.com/signalfx/integrations).  These are not currently
-versioned, but they probably should be at some point to avoid breaking this if
-they are updated significantly.
+extent, as well as the config templates that are based on the [integrations
+repo](https://github.com/signalfx/integrations).  Finally,
+[gomplate](https://gomplate.hairyhenderson.ca/) is used instead of sed for a
+much cleaner and robust templating system.
 
 ### Python
 Python is a bit more involved because it has a lot of `.py` files in its
@@ -75,7 +75,7 @@ whatever Linux distro you want.  It contains a single dir called `collectd`
 which has everything needed.  Collectd is run with the `run.sh` script in that
 dir.  You **cannot** execute the `sbin/collectd` binary directly.  The `run.sh`
 script expects at a bare minimum the SignalFx api token provided as an envvar
-called `API_TOKEN`.  
+called `API_TOKEN`.
 
 ```sh
 $ API_TOKEN=abcdefg collectd/run.sh
@@ -88,12 +88,14 @@ The following envvars can be passed to the run script:
      will be automatically filled in if not provided.
  - `NO_SYSTEM_METRICS` (optional) - If this envvar is set to anything, system
      metrics will be disabled in the built-in config files.
+ - `SFX_DIM_<dim_name>` (optional) - Extra dimensions can be specified by this
+     envvar.  For example, to send an extra dimension called *app_instance_id*
+     with a value of '5', use an envvar of `SFX_DIM_app_instance_id=5`.
 
 This will run Collectd with the collectdmon tool that handles automatically
 restarting collectd should it crash.
 
-
-## Configuration
+## Collectd Configuration
 To add plugins, just add them to the `collectd/plugins` directory once the
 bundle is extracted.  If a plugin requires pip dependencies, install them into
 the `collectd/lib/python2.7/site-packages` dir.
@@ -104,6 +106,12 @@ the `collectd/etc/managed_config` dir.
 ## Notes
 This has been tested on Ubuntu 14.04 and Centos 7 but needs a lot more testing
 as well as an automated test suite.
+
+## Versioning
+This bundle is versioned based on the underlying collectd version with a `+<num>`
+label that increments for each release of this bundle between collectd
+versions.  For example, a version of `5.7.0+4` indicates the fourth release of
+this bundle based on collectd 5.7.0.
 
 ## TODO
  - Automated testing across multiple Linux distros
