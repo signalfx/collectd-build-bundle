@@ -75,15 +75,15 @@ whatever Linux distro you want.  It contains a single dir called `collectd`
 which has everything needed.  Collectd is run with the `run.sh` script in that
 dir.  You **cannot** execute the `sbin/collectd` binary directly.  The `run.sh`
 script expects at a bare minimum the SignalFx api token provided as an envvar
-called `API_TOKEN`.
+called `ACCESS_TOKEN`.
 
 ```sh
-$ API_TOKEN=abcdefg collectd/run.sh
+$ ACCESS_TOKEN=abcdefg collectd/run.sh
 ```
 
 The following envvars can be passed to the run script:
 
- - `API_TOKEN` (required) - The SignalFx API Token for the org you want to send metrics to
+ - `ACCESS_TOKEN` (required) - The SignalFx API Token for the org you want to send metrics to
  - `HOSTNAME` (optional) - Value to override the hostname of the machine.  This
      will be automatically filled in if not provided.
  - `NO_SYSTEM_METRICS` (optional) - If this envvar is set to anything, system

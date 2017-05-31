@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -ex
+set -eo pipefail
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
@@ -45,14 +45,14 @@ do
 done
 
 SFX_INGEST_URL=${SFX_INGEST_URL:-https://ingest.signalfx.com}
-[[ -z $API_TOKEN ]] && echo 'API_TOKEN envvar must be given!' >&2 && exit 1
+[[ -z $ACCESS_TOKEN ]] && echo 'ACCESS_TOKEN envvar must be given!' >&2 && exit 1
 
 get_aws_ident() {
   # Use netcat with sed magic instead of curl since libcurl has issues
   # netcat, jq, and sed are bundled
   (export LD_LIBRARY_PATH=$LD_LIBRARY_PATH; \
     echo -e "GET /latest/dynamic/instance-identity/document HTTP/1.1\r\n\r\n" | \
-    nc -q1 -w1 169.254.169.254 80 | \
+    nc -q1 -w1 169.254.169.254 80 || true | \
     sed '1,/^\r$/d' | \
     jq -r '.instanceId + "_" + .accountId + "_" + .region' || true)
 }
@@ -68,7 +68,7 @@ TYPES_DB=${SCRIPT_DIR}/share/collectd/types.db \
 PLUGIN_DIR=$SCRIPT_DIR/lib/collectd \
 BASE_DIR=$SCRIPT_DIR \
 HOSTNAME=$HOSTNAME \
-API_TOKEN=$API_TOKEN \
+ACCESS_TOKEN=$ACCESS_TOKEN \
 INGEST_HOST=$SFX_INGEST_URL \
 BASE_DIR=$SCRIPT_DIR \
 EXTRA_DIMS=$EXTRA_DIMS \
