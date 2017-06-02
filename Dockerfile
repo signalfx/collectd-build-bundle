@@ -72,7 +72,6 @@ RUN ./build.sh &&\
         --prefix $INSTALL_DIR \
         --enable-all-plugins \
         --disable-ascent \
-        --disable-java \
         --disable-rrdcached \
         --disable-lvm \
         --disable-turbostat \
@@ -98,7 +97,8 @@ RUN ./build.sh &&\
         --disable-onewire \
         --disable-oracle \
         --disable-pf \
-        --disable-redis --disable-write_redis \
+        --disable-redis \
+        --disable-write_redis \
         --disable-routeros \
         --disable-rrdtool \
         --disable-sigrok \
@@ -140,6 +140,14 @@ RUN wget -O /tmp/patchelf.tar.gz https://nixos.org/releases/patchelf/patchelf-0.
     cp src/patchelf /opt/collectd/bin/ &&\
     mkdir -p /opt/collectd/lib64 &&\
     cp /lib64/ld-linux-x86-64.so.2 /opt/collectd/lib64/
+
+# Install JRE along with signalfx types.db file needed for JMX config
+RUN mv /usr/lib/jvm/java-7-openjdk-amd64/jre /opt/collectd/jre &&\
+    find /opt/collectd/jre/lib -type l -exec rm {} \; &&\
+    cp -r /etc/java-7-openjdk/* /opt/collectd/jre/lib &&\
+    mkdir -p /opt/collectd/plugins/java &&\
+    wget -O /opt/collectd/plugins/java/signalfx_types_db \
+      https://raw.githubusercontent.com/signalfx/integrations/master/collectd-java/signalfx_types_db
 
 COPY collect-libs.sh /opt/
 RUN bash /opt/collect-libs.sh $INSTALL_DIR &&\

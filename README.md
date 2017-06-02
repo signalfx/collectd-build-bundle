@@ -86,13 +86,17 @@ The following envvars can be passed to the run script:
  - `ACCESS_TOKEN` (required) - The SignalFx API Token for the org you want to send metrics to
  - `HOSTNAME` (optional) - Value to override the hostname of the machine.  This
      will be automatically filled in if not provided.
- - `NO_SYSTEM_METRICS` (optional) - If this envvar is set to anything, system
+ - `NO_SYSTEM_METRICS` (optional) - If this envvar is set to 'true', system
      metrics will be disabled in the built-in config files.
  - `SFX_DIM_<dim_name>` (optional) - Extra dimensions can be specified by this
      envvar.  For example, to send an extra dimension called *app_instance_id*
      with a value of '5', use an envvar of `SFX_DIM_app_instance_id=5`.
  - `LOG_FILE` (optional) - The file path to write collectd logs to.  Defaults
      to the `<bundle install dir>/log/collectd.log`
+ - `ENABLE_JMX` (optional) - If set to 'true', the JMX plugin will be enabled
+     to allow monitoring JVM applications.  If you don't need to monitor JMX
+     applications, it is better to not enable this since enabling Java causes
+     collectd to consume much greater amounts of memory.
 
 This will run Collectd with the collectdmon tool that handles automatically
 restarting collectd should it crash.
