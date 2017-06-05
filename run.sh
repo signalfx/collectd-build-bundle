@@ -32,7 +32,7 @@ do
 done
 
 # Wait and export these until the very end
-LD_LIBRARY_PATH=$SCRIPT_DIR/lib:$SCRIPT_DIR/lib/x86_64-linux-gnu
+LD_LIBRARY_PATH=$SCRIPT_DIR/lib:$SCRIPT_DIR/jre/lib/amd64/server
 PYTHONHOME=$SCRIPT_DIR/lib/python2.7
 PYTHONPATH=$SCRIPT_DIR/lib/python2.7:$SCRIPT_DIR/lib/python2.7/plat-x86_64-linux-gnu:$SCRIPT_DIR/lib/python2.7/lib-tk:$SCRIPT_DIR/lib/python2.7/lib-old:$SCRIPT_DIR/lib/python2.7/lib-dynload:$SCRIPT_DIR/lib/python2.7/dist-packages:$SCRIPT_DIR/lib/python2.7/site-packages
 
@@ -74,6 +74,7 @@ BASE_DIR=$SCRIPT_DIR \
 LOG_FILE=$LOG_FILE \
 EXTRA_DIMS=$EXTRA_DIMS \
 NO_SYSTEM_METRICS=$NO_SYSTEM_METRICS \
+ENABLE_JMX=$ENABLE_JMX \
 gomplate --input-dir="${SCRIPT_DIR}/templates/" --output-dir="$SCRIPT_DIR/etc"
 
 echo "About to start collectd bundle version $(cat $SCRIPT_DIR/VERSION)"

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -ex
+set -e
 
 # Find all dependent shared object files for the collectd installation and move
 # them into the installation directory
@@ -25,17 +25,14 @@ find $INSTALL_DIR -executable -type f ! -name "*.la" | \
     sort | uniq
 }
 
+mkdir -p $INSTALL_DIR/lib
+
 libs=$(find_deps)
 for lib in $libs
 do
-  relative_path=$(perl -pe 's!^/usr!!' <<< $lib)
+  cp $lib $INSTALL_DIR/lib/
 
-  new_path=${INSTALL_DIR}${relative_path}
-  mkdir -p $(dirname $new_path)
-
-  cp $lib $new_path
-
-  echo "Pulled in $lib to $new_path"
+  echo "Pulled in $lib" # to $new_path"
 done
 
 echo "Processed $(wc -w <<< $libs) libraries"
@@ -43,7 +40,8 @@ echo "Processed $(wc -w <<< $libs) libraries"
 echo "Checking for missing lib dependencies..."
 
 # LD_LIBRARY_PATH gets priority over default system paths
-new_deps=$(LD_LIBRARY_PATH=$INSTALL_DIR/lib:$INSTALL_DIR/lib/x86_64-linux-gnu find_deps)
+LIB_PATHS=$INSTALL_DIR/lib:$INSTALL_DIR/jre/lib/amd64
+new_deps=$(LD_LIBRARY_PATH=$LIB_PATHS find_deps)
 
 # Look for any libs still pointing out of our install path
 missing_deps=$(grep -v "/opt/collectd" <<< $new_deps || true)
