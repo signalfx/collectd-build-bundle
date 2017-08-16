@@ -52,7 +52,7 @@ get_aws_ident() {
   # netcat, jq, and sed are bundled
   (export LD_LIBRARY_PATH=$LD_LIBRARY_PATH; \
     echo -e "GET /latest/dynamic/instance-identity/document HTTP/1.1\r\n\r\n" | \
-    nc -q1 -w1 169.254.169.254 80 || true | \
+    (nc -q1 -w1 169.254.169.254 80 || true) | \
     sed '1,/^\r$/d' | \
     jq -r '.instanceId + "_" + .accountId + "_" + .region' || true)
 }

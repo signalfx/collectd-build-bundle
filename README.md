@@ -65,8 +65,8 @@ too hard and just involves some copying and manipulation of
 `PYTHONPATH`/`PYTHONHOME`.
 
 ### Java
-Currently this doesn't support Java plugins.  This should be possible to add
-at some point.
+A basic JVM is installed in the bundle to enable support of the GenericJMX
+plugin.  This should allow the use of any GenericJMX integrations.
 
 ## Installation and Running
 `make collectd.tar.gz` will create a bundle from the current repo.  Once you
@@ -121,6 +121,3 @@ this bundle based on collectd 5.7.0.
 
 ## TODO
  - Automated testing across multiple Linux distros
- - Vendor all of the Python plugins with this (similar to what's in the
-     collectd-build-ubuntu repo in the `plugins` dir)
- - Add Java support
