@@ -59,10 +59,10 @@ RUN apt-get update &&\
         libldap2-dev \
         wget
 
-ENV COLLECTD_VERSION=5.7.0
+ENV COLLECTD_VERSION=5.7.2-sfx0
 
 WORKDIR /src/collectd
-RUN wget -O /tmp/collectd.tar.gz https://github.com/signalfx/collectd/archive/collectd-${COLLECTD_VERSION}-sfx0.tar.gz &&\
+RUN wget -O /tmp/collectd.tar.gz https://github.com/signalfx/collectd/archive/collectd-${COLLECTD_VERSION}.tar.gz &&\
     tar -zxf /tmp/collectd.tar.gz -C /tmp &&\
     mv /tmp/collectd-*/* /src/collectd
 
