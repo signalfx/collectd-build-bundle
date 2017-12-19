@@ -1,7 +1,8 @@
-FROM ubuntu:trusty
+FROM ubuntu:trusty as base
 
+ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update &&\
-    apt-get install -y -q \
+    apt-get install -y \
         build-essential \
         git \
         curl \
@@ -59,17 +60,18 @@ RUN apt-get update &&\
         libldap2-dev \
         wget
 
-ENV COLLECTD_VERSION=5.7.2-sfx0
+ENV COLLECTD_VERSION=5.8.0-sfx0
 
-WORKDIR /src/collectd
+WORKDIR /usr/src/collectd
 RUN wget -O /tmp/collectd.tar.gz https://github.com/signalfx/collectd/archive/collectd-${COLLECTD_VERSION}.tar.gz &&\
     tar -zxf /tmp/collectd.tar.gz -C /tmp &&\
-    mv /tmp/collectd-*/* /src/collectd
+    mv /tmp/collectd-*/* /usr/src/collectd
 
-ENV INSTALL_DIR=/opt/collectd
 RUN ./build.sh &&\
     ./configure \
-        --prefix $INSTALL_DIR \
+        --prefix /opt/collectd/usr \
+        --sysconfdir=/etc \
+        --localstatedir=/var \
         --enable-all-plugins \
         --disable-ascent \
         --disable-rrdcached \
@@ -79,11 +81,13 @@ RUN ./build.sh &&\
         --disable-cpusleep \
         --disable-curl_xml \
         --disable-dpdkstat \
+        --disable-dpdkevents \
         --disable-grpc \
         --disable-gps \
         --disable-ipmi \
         --disable-lua \
         --disable-mqtt \
+        --disable-intel_pmu \
         --disable-intel_rdt \
         --disable-static \
         --disable-write_riemann \
@@ -114,68 +118,62 @@ RUN ./build.sh &&\
         --without-libriemann \
         --without-libsigrok
 
-RUN make &&\
+RUN make -j6 &&\
     make install &&\
-    mkdir -p /opt/collectd/etc/filtering_config &&\
-    mkdir -p /opt/collectd/etc/managed_config
+    mkdir -p /opt/collectd/etc/collectd/filtering_config &&\
+    mkdir -p /opt/collectd/etc/collectd/managed_config
 
 # jq and netcat are used to get the AWS unique id out from the AWS metadata
 # endpoint.
-# Gomplate is a much better alternative to the sed hacking the current
-# installer does
-RUN wget -O /opt/collectd/bin/jq https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64 &&\
-    chmod +x /opt/collectd/bin/jq &&\
-    cp /bin/nc /opt/collectd/bin &&\
-    cp /bin/sed /opt/collectd/bin &&\
-    wget -O /opt/collectd/bin/gomplate https://github.com/hairyhenderson/gomplate/releases/download/v1.7.0/gomplate_linux-amd64 &&\
-    chmod +x /opt/collectd/bin/gomplate &&\
+RUN wget -O /usr/bin/jq https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64 &&\
+    chmod +x /usr/bin/jq &&\
     pip install yq
 
-# Get the patchelf tool in the bundle to change interpreters at runtime
-RUN wget -O /tmp/patchelf.tar.gz https://nixos.org/releases/patchelf/patchelf-0.9/patchelf-0.9.tar.gz &&\
-    cd /tmp &&\
-    tar -xf patchelf.tar.gz &&\
-    cd patchelf-* &&\
-    ./configure && make &&\
-    cp src/patchelf /opt/collectd/bin/ &&\
-    mkdir -p /opt/collectd/lib64 &&\
-    cp /lib64/ld-linux-x86-64.so.2 /opt/collectd/lib64/
-
-# Install JRE along with signalfx types.db file needed for JMX config
-RUN mv /usr/lib/jvm/java-7-openjdk-amd64/jre /opt/collectd/jre &&\
-    find /opt/collectd/jre/lib -type l -exec rm {} \; &&\
-    cp -r /etc/java-7-openjdk/* /opt/collectd/jre/lib &&\
-    mkdir -p /opt/collectd/plugins/java &&\
-    wget -O /opt/collectd/plugins/java/signalfx_types_db \
-      https://raw.githubusercontent.com/signalfx/integrations/master/collectd-java/signalfx_types_db
-
-COPY collect-libs.sh /opt/
-RUN bash /opt/collect-libs.sh $INSTALL_DIR &&\
-    cp -r /usr/lib/python2.7 /opt/collectd/lib/python2.7
-
-# Install SignalFx plugin
-RUN mkdir -p /opt/collectd/plugins &&\
-    git clone https://github.com/signalfx/signalfx-collectd-plugin.git /opt/collectd/plugins/signalfx &&\
-    pip install --install-option="--prefix=$INSTALL_DIR" -r /opt/collectd/plugins/signalfx/requirements.txt
 
 COPY install-plugins.sh plugins.yaml /tmp/plugins/
 # Install other python plugins
-RUN bash -e /tmp/plugins/install-plugins.sh
+RUN bash /tmp/plugins/install-plugins.sh
 
-COPY templates /opt/collectd/templates
-# Copy in templates, CA certs, and filtering config
-# Copy in all CA certs instead of only our GoDaddy one in case we switch CAs
-RUN cp /etc/ssl/certs/ca-certificates.crt /opt/collectd/ca-certificates.crt &&\
-    wget -O /opt/collectd/etc/filtering_config/filtering.conf \
+RUN find /usr/share/collectd /usr/lib/python2.7/ -name "*.pyc" -print0 | xargs --null rm
+RUN cp -R --parents -a /usr/share/collectd /usr/lib/python2.7 /usr/local/lib/python2.7 /opt/collectd
+
+RUN wget -O /opt/collectd/usr/bin/gomplate https://github.com/hairyhenderson/gomplate/releases/download/v1.7.0/gomplate_linux-amd64 &&\
+    chmod +x /opt/collectd/usr/bin/gomplate
+
+# Get filtering config filtering config
+RUN wget -O /opt/collectd/etc/collectd/filtering_config/filtering.conf \
       https://raw.githubusercontent.com/signalfx/integrations/master/collectd-match_regex/filtering.conf
+RUN wget -O /opt/collectd/usr/bin/get_aws_unique_id https://raw.githubusercontent.com/signalfx/signalfx-collectd-installer/master/get_aws_unique_id &&\
+    chmod +x /opt/collectd/usr/bin/get_aws_unique_id
 
-COPY run.sh /opt/collectd/run.sh
 COPY VERSION /opt/collectd/VERSION
+
+COPY collect-libs.sh /opt/
+RUN bash /opt/collect-libs.sh /opt/collectd /opt/collectd
+
+# Install JRE along with signalfx types.db file needed for JMX config
+RUN cp -R --parents -a -f /etc/java-7-openjdk /usr/lib/jvm/ /opt/collectd &&\
+    mkdir -p /opt/collectd/usr/share/collectd/java &&\
+    wget -O /opt/collectd/usr/share/collectd/java/signalfx_types_db \
+      https://raw.githubusercontent.com/signalfx/integrations/master/collectd-java/signalfx_types_db
+
+# Clean up unnecessary man files
+RUN rm -rf /opt/collectd/usr/share/man /opt/collectd/usr/lib/jvm/java-7-openjdk-amd64/jre/man/
+
+RUN wget -O /opt/collectd/usr/bin/collectd-install https://dl.signalfx.com/collectd-install &&\
+    chmod +x /opt/collectd/usr/bin/collectd-install
 
 # Ensure versions are consistent and bundle everything up
 RUN bash -c 'ver=$(cat /opt/collectd/VERSION); \
             [[ ${ver%-*} == $COLLECTD_VERSION ]] || \
-            (echo "VERSION MISMATCH ($ver / $COLLECTD_VERSION)" >&2 && exit 1)' &&\
-    chmod +x /opt/collectd/run.sh &&\
-    tar -C /opt -zcf /opt/collectd.tar.gz collectd &&\
-    echo "Bundle is $(du -h /opt/collectd.tar.gz | awk '{ print $1 }') compressed/$(du -sh /opt/collectd | awk '{ print $1 }') uncompressed"
+            (echo "VERSION MISMATCH ($ver / $COLLECTD_VERSION)" >&2 && exit 1)'
+
+FROM scratch as final-image
+
+COPY --from=base /etc/ssl/certs/ca-certificates.crt /collectd/etc/ssl/certs/ca-certificates.crt
+COPY --from=base /opt/collectd/ /collectd
+COPY --from=base /bin/ /collectd/bin
+COPY --from=base /lib64/ /collectd/lib64
+COPY --from=base /lib/ /collectd/lib
+COPY templates /collectd/templates
+COPY configure /collectd/configure

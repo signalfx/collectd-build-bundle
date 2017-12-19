@@ -69,19 +69,24 @@ A basic JVM is installed in the bundle to enable support of the GenericJMX
 plugin.  This should allow the use of any GenericJMX integrations.
 
 ## Installation and Running
+You can run this in the more "raw" form by installing the bundle built by `make
+collectd.tar.gz` or you can use a more structured version that is packaged for
+a particular distro (see the `packaging` dir).
+
 `make collectd.tar.gz` will create a bundle from the current repo.  Once you
-have a bundle, you should extract its contents to whatever directory on
+have a bundle, you can extract its contents to whatever directory on
 whatever Linux distro you want.  It contains a single dir called `collectd`
-which has everything needed.  Collectd is run with the `run.sh` script in that
-dir.  You **cannot** execute the `sbin/collectd` binary directly.  The `run.sh`
-script expects at a bare minimum the SignalFx api token provided as an envvar
-called `ACCESS_TOKEN`.
+which has everything needed.  Collectd should be run via your distro's init
+system.  See the `packaging` dir for more information as well as packages for
+certain distros.  You **cannot** execute the `sbin/collectd` binary directly.
+The `configure` script expects at a bare minimum the SignalFx api token
+provided as an envvar called `ACCESS_TOKEN`.
 
 ```sh
-$ ACCESS_TOKEN=abcdefg collectd/run.sh
+$ ACCESS_TOKEN=abcdefg collectd/configure
 ```
 
-The following envvars can be passed to the run script:
+The following envvars can be passed to the configure script:
 
  - `ACCESS_TOKEN` (required) - The SignalFx API Token for the org you want to send metrics to
  - `HOSTNAME` (optional) - Value to override the hostname of the machine.  This
@@ -93,13 +98,10 @@ The following envvars can be passed to the run script:
      with a value of '5', use an envvar of `SFX_DIM_app_instance_id=5`.
  - `LOG_FILE` (optional) - The file path to write collectd logs to.  Defaults
      to the `<bundle install dir>/log/collectd.log`
- - `ENABLE_JMX` (optional) - If set to 'true', the JMX plugin will be enabled
-     to allow monitoring JVM applications.  If you don't need to monitor JMX
-     applications, it is better to not enable this since enabling Java causes
-     collectd to consume much greater amounts of memory.
+ - `ETC_DIR` (optional) - Where to put the collectd config.  Defaults to
+     `/etc`.
 
-This will run Collectd with the collectdmon tool that handles automatically
-restarting collectd should it crash.
+This will create a base set of configuration for collectd.
 
 ## Collectd Configuration
 To add plugins, just add them to the `collectd/plugins` directory once the

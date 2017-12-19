@@ -1,0 +1,55 @@
+#!/bin/bash
+
+set -eo pipefail
+
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+PID_FILE=${PID_FILE:-$SCRIPT_DIR/pid}
+ETC_DIR=${ETC_DIR:-/etc}
+
+append_dim_qs() {
+  local extra_dims=$1
+  local dim_name=$2
+  local dim_value=$3
+
+  dim_qp="sfxdim_$dim_name=$dim_value"
+
+  if [ -z $extra_dims ]
+  then
+    echo "?${dim_qp}"
+  else
+    # Escape & so sed doesn't see it
+    echo "${extra_dims}&${dim_qp}"
+  fi
+}
+
+dims_to_add=$(printenv | grep '^SFX_DIM' || true)
+for dim in $dims_to_add
+do
+  name=$(cut -d'=' -f 1 <<< $dim | sed -e 's/SFX_DIM_//')
+  value=$(cut -d'=' -f 2 <<< $dim)
+  EXTRA_DIMS=$(append_dim_qs "$EXTRA_DIMS" $name $value)
+  echo "Adding extra dimension $name=$value"
+done
+
+SFX_INGEST_URL=${SFX_INGEST_URL:-https://ingest.signalfx.com}
+[[ -z $ACCESS_TOKEN ]] && echo 'ACCESS_TOKEN envvar must be given!' >&2 && exit 1
+
+AWS_UNIQUE_ID=$($SCRIPT_DIR/usr/bin/get_aws_unique_id)
+[ -n "$AWS_UNIQUE_ID" ] && EXTRA_DIMS=$(append_dim_qs "$EXTRA_DIMS" AWSUniqueId $AWS_UNIQUE_ID)
+
+TYPES_DB=${SCRIPT_DIR}/usr/share/collectd/types.db \
+PLUGIN_DIR=${SCRIPT_DIR}/usr/lib/collectd \
+PYTHON_PLUGIN_DIR=${SCRIPT_DIR}/usr/share/collectd \
+JAVA_PLUGIN_DIR=${SCRIPT_DIR}/usr/share/collectd/java \
+BASE_DIR=$BASE_DIR \
+ETC_DIR=$ETC_DIR \
+HOSTNAME=$HOSTNAME \
+ACCESS_TOKEN=$ACCESS_TOKEN \
+INGEST_HOST=$SFX_INGEST_URL \
+LOG_FILE=$LOG_FILE \
+EXTRA_DIMS=$EXTRA_DIMS \
+ENABLE_JMX=$ENABLE_JMX \
+NO_SYSTEM_METRICS=$NO_SYSTEM_METRICS \
+CA_CERT_FILE=$CA_CERT_FILE \
+$SCRIPT_DIR/usr/bin/gomplate --input-dir="${SCRIPT_DIR}/templates/" --output-dir="$ETC_DIR"
