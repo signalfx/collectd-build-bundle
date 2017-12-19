@@ -1,0 +1,5 @@
+Package: collectd
+Version: 5.8.0-sfx0
+Maintainer: SignalFx
+Architecture: amd64
+Description: Collectd bundled with all of its dependencies for easy offline installation

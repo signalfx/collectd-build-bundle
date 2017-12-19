@@ -1,0 +1,17 @@
+#!/bin/bash
+
+set -ex
+
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+ROOT_DIR=$SCRIPT_DIR/../..
+
+image_name=collectd-bundle-ubuntu-package
+
+cp $ROOT_DIR/collectd.tar.gz $SCRIPT_DIR
+
+docker build --rm -f $SCRIPT_DIR/Dockerfile -t $image_name $SCRIPT_DIR
+
+cid=$(docker create $image_name true)
+trap "docker rm -f $cid; rm -f $SCRIPT_DIR/collectd.tar.gz" EXIT
+
+docker cp ${cid}:/collectd.deb $SCRIPT_DIR
