@@ -41,6 +41,7 @@ AWS_UNIQUE_ID=$($SCRIPT_DIR/usr/bin/get_aws_unique_id)
 TYPES_DB=${SCRIPT_DIR}/usr/share/collectd/types.db \
 PLUGIN_DIR=${SCRIPT_DIR}/usr/lib/collectd \
 PYTHON_PLUGIN_DIR=${SCRIPT_DIR}/usr/share/collectd \
+JAVA_PLUGIN_DIR=${SCRIPT_DIR}/usr/share/collectd/java \
 BASE_DIR=$BASE_DIR \
 ETC_DIR=$ETC_DIR \
 HOSTNAME=$HOSTNAME \
@@ -48,6 +49,7 @@ ACCESS_TOKEN=$ACCESS_TOKEN \
 INGEST_HOST=$SFX_INGEST_URL \
 LOG_FILE=$LOG_FILE \
 EXTRA_DIMS=$EXTRA_DIMS \
+ENABLE_JMX=$ENABLE_JMX \
 NO_SYSTEM_METRICS=$NO_SYSTEM_METRICS \
 CA_CERT_FILE=$CA_CERT_FILE \
 $SCRIPT_DIR/usr/bin/gomplate --input-dir="${SCRIPT_DIR}/templates/" --output-dir="$ETC_DIR"
